@@ -1,0 +1,22 @@
+[project]
+name = "gauss-eval"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "datasets>=4.3.0",
+    "ipykernel>=7.1.0",
+    "lightllm>=0.0.1",
+    "litellm>=1.79.0",
+    "matplotlib>=3.10.7",
+    "pandas>=2.0.0",
+    "reportlab>=4.4.4",
+    "scikit-learn>=1.7.2",
+    "seaborn>=0.13.2",
+    "tenacity>=9.1.2",
+]
+[tool.uv]
+override-dependencies = [
+    "triton; sys_platform != 'darwin'"
+]

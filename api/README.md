@@ -1,0 +1,1 @@
+# Place your api key in this folder and name it like openrouter.key

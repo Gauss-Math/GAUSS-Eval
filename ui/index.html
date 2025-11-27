@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gauss Eval Configuration</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>GAUSS Eval</h1>
+            <p class="subtitle">Configure prompts, hyperparameters, dataset, and problem settings</p>
+            <div id="rootStatus" class="root-status">
+                <span id="rootStatusText">Detecting project root...</span>
+            </div>
+        </header>
+
+        <div class="config-grid">
+            <!-- Prompt Configuration Section -->
+            <section class="config-section">
+                <div class="section-header">
+                    <h2>📝 Prompt Configuration</h2>
+                    <div class="section-actions">
+                        <button class="btn btn-secondary" id="resetPrompts">Reset to Default</button>
+                        <button class="btn btn-secondary" id="loadPromptsFile">Load from File</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="systemPrompt">System Prompt:</label>
+                    <textarea 
+                        id="systemPrompt" 
+                        class="form-control textarea-large" 
+                        placeholder="Enter system prompt..."
+                        rows="8"
+                    ></textarea>
+                    <div class="char-count">
+                        <span id="systemPromptCount">0</span> characters
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="userPrompt">User Prompt Template:</label>
+                    <textarea 
+                        id="userPrompt" 
+                        class="form-control textarea-large" 
+                        placeholder="Enter user prompt template..."
+                        rows="12"
+                    ></textarea>
+                    <div class="char-count">
+                        <span id="userPromptCount">0</span> characters
+                    </div>
+                    <div class="help-text">
+                        Use placeholders: {problem}, {answer}, {rubric}, {total_points}
+                    </div>
+                </div>
+            </section>
+
+            <!-- Hyperparameters Section -->
+            <section class="config-section">
+                <div class="section-header">
+                    <h2>⚙️ Sampling Parameters</h2>
+                    <div class="section-actions">
+                        <button class="btn btn-secondary" id="resetHyperparams">Reset to Default</button>
+                    </div>
+                </div>
+
+                <div class="hyperparams-grid">
+                    <div class="form-group">
+                        <label for="temperature">Temperature:</label>
+                        <div class="input-with-slider">
+                            <input type="range" id="temperatureSlider" min="0" max="2" step="0.1" value="0.1" class="slider">
+                            <input type="number" id="temperature" class="form-control number-input" min="0" max="2" step="0.1" value="0.1">
+                        </div>
+                        <div class="help-text">Controls randomness (0.0 = deterministic, 2.0 = very random)</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="maxTokens">Max Tokens:</label>
+                        <input type="number" id="maxTokens" class="form-control" min="1" max="100000" value="32768">
+                        <div class="help-text">Maximum number of tokens to generate</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="topP">Top P:</label>
+                        <div class="input-with-slider">
+                            <input type="range" id="topPSlider" min="0" max="1" step="0.05" value="1.0" class="slider">
+                            <input type="number" id="topP" class="form-control number-input" min="0" max="1" step="0.05" value="1.0">
+                        </div>
+                        <div class="help-text">Nucleus sampling threshold</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="topK">Top K:</label>
+                        <input type="number" id="topK" class="form-control" min="0" max="100" value="0">
+                        <div class="help-text">Top-k sampling (0 = disabled)</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="frequencyPenalty">Frequency Penalty:</label>
+                        <div class="input-with-slider">
+                            <input type="range" id="frequencyPenaltySlider" min="-2" max="2" step="0.1" value="0.0" class="slider">
+                            <input type="number" id="frequencyPenalty" class="form-control number-input" min="-2" max="2" step="0.1" value="0.0">
+                        </div>
+                        <div class="help-text">Penalty for frequent tokens</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="presencePenalty">Presence Penalty:</label>
+                        <div class="input-with-slider">
+                            <input type="range" id="presencePenaltySlider" min="-2" max="2" step="0.1" value="0.0" class="slider">
+                            <input type="number" id="presencePenalty" class="form-control number-input" min="-2" max="2" step="0.1" value="0.0">
+                        </div>
+                        <div class="help-text">Penalty for new tokens</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="seed">Seed:</label>
+                        <input type="number" id="seed" class="form-control" value="1234">
+                        <div class="help-text">Random seed for reproducibility</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="numRetries">Number of Retries:</label>
+                        <input type="number" id="numRetries" class="form-control" min="1" max="10" value="5">
+                        <div class="help-text">Number of retry attempts on failure</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="timeout">Timeout (seconds):</label>
+                        <input type="number" id="timeout" class="form-control" min="10" max="3600" value="300">
+                        <div class="help-text">Request timeout in seconds</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dataset and Problem Configuration -->
+            <section class="config-section">
+                <div class="section-header">
+                    <h2>📊 Dataset & Problem Configuration</h2>
+                </div>
+
+                <div class="form-group">
+                    <label for="dataset">Dataset:</label>
+                    <select id="dataset" class="form-control">
+                        <option value="USAMO2025">USAMO 2025</option>
+                        <option value="IMO2025">IMO 2025</option>
+                        <option value="DEBUG">Debug Dataset</option>
+                    </select>
+                    <div class="help-text">Select the dataset to use for evaluation</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="model">Model:</label>
+                    <input type="text" id="model" class="form-control" value="openrouter/openai/gpt-5" placeholder="Enter model name...">
+                    <div class="help-text">Model identifier (e.g., openrouter/openai/gpt-4o-mini)</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="sampleIndices">Sample Indices (optional):</label>
+                    <textarea id="sampleIndices" class="form-control" rows="3" placeholder="e.g., 0,1,2,5-10,15 or leave empty for all samples"></textarea>
+                    <div class="help-text">
+                        Specify sample indices to process. Supports ranges (e.g., 5-10) and comma-separated values.
+                        Leave empty to process all samples in the dataset.
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="problemFilter">Filter by Problem Index:</label>
+                    <div class="input-with-controls">
+                        <select id="problemFilter" class="form-control">
+                            <option value="">All Problems</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary btn-small" id="loadProblemIndices">Load Indices</button>
+                        <button type="button" class="btn btn-secondary btn-small" id="refreshDataset">Refresh Dataset</button>
+                    </div>
+                    <div class="help-text">Select a specific problem to auto-populate sample indices, or load dataset info</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="numProcesses">Number of Processes:</label>
+                    <input type="number" id="numProcesses" class="form-control" min="1" max="16" value="1">
+                    <div class="help-text">Number of parallel processes (1 = sequential)</div>
+                </div>
+            </section>
+
+            <!-- Rubric Configuration -->
+            <section class="config-section">
+                <div class="section-header">
+                    <h2>📝 Rubric Configuration</h2>
+                </div>
+
+                <div class="form-group">
+                    <label for="rubricProblem">Problem for Rubric:</label>
+                    <select id="rubricProblem" class="form-control">
+                        <option value="">Select a problem to configure rubric...</option>
+                    </select>
+                    <div class="help-text">Select a problem to view/edit its rubric</div>
+                </div>
+
+                <div id="rubricEditor" style="display: none;">
+                    <div class="rubric-mode-selector">
+                        <label>
+                            <input type="radio" name="rubricMode" value="items" id="rubricModeItems" checked>
+                            Structured Items
+                        </label>
+                        <label>
+                            <input type="radio" name="rubricMode" value="text" id="rubricModeText">
+                            Text Format
+                        </label>
+                    </div>
+
+                    <div class="rubric-controls">
+                        <button type="button" id="addRubricItem" class="btn btn-secondary">➕ Add Item</button>
+                        <button type="button" id="saveRubric" class="btn btn-primary">💾 Save Rubric</button>
+                        <button type="button" id="deleteRubric" class="btn btn-danger">🗑️ Delete Rubric</button>
+                    </div>
+
+                    <!-- Structured Items Mode -->
+                    <div id="rubricItemsMode" class="rubric-mode-content">
+                        <div id="rubricItems" class="rubric-items">
+                            <!-- Rubric items will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <!-- Text Mode -->
+                    <div id="rubricTextMode" class="rubric-mode-content" style="display: none;">
+                        <div class="form-group">
+                            <label for="rubricTextContent">Rubric Content:</label>
+                            <textarea 
+                                id="rubricTextContent" 
+                                class="form-control textarea-large" 
+                                rows="12" 
+                                placeholder="Enter the complete rubric content as text...&#10;&#10;Example:&#10;1. Problem Understanding (2 pts)&#10;   - Student demonstrates clear understanding of the problem&#10;   - Identifies key mathematical concepts&#10;&#10;2. Method Selection (3 pts)&#10;   - Appropriate mathematical approach chosen&#10;   - Shows understanding of relevant theorems/formulas&#10;&#10;3. Execution (4 pts)&#10;   - Correct calculations and logical steps&#10;   - Minor errors acceptable with partial credit&#10;&#10;4. Final Answer (1 pt)&#10;   - Correct final result in proper format"
+                            ></textarea>
+                            <div class="help-text">Enter the complete rubric as plain text. This will be saved as a string format.</div>
+                        </div>
+                    </div>
+
+                    <div class="rubric-preview">
+                        <h4>Rubric Preview:</h4>
+                        <div id="rubricPreview" class="rubric-preview-content">
+                            Select a problem to view its rubric
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Run Configuration -->
+            <section class="config-section">
+                <div class="section-header">
+                    <h2>🚀 Run Configuration</h2>
+                </div>
+
+                <div class="form-group">
+                    <label for="saveDir">Save Directory:</label>
+                    <input type="text" id="saveDir" class="form-control" value="results/" placeholder="Directory to save results...">
+                    <div class="help-text">Directory where results will be saved</div>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="asyncMode" class="checkbox">
+                        Use Async Mode
+                    </label>
+                    <div class="help-text">Use asynchronous processing instead of multiprocessing</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="resumeFrom">Resume From (optional):</label>
+                    <input type="text" id="resumeFrom" class="form-control" placeholder="Path to previous run directory...">
+                    <div class="help-text">Resume from a previous incomplete run</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-bar">
+            <div class="action-group">
+                <button class="btn btn-primary" id="saveConfig">💾 Save Configuration</button>
+                <button class="btn btn-secondary" id="loadConfig">📁 Load Configuration</button>
+                <button class="btn btn-secondary" id="exportConfig">📤 Export Config</button>
+            </div>
+            <div class="action-group">
+                <button class="btn btn-success" id="generateCommand">💾⚡ Save & Generate Command</button>
+            </div>
+        </div>
+
+        <!-- Status and Output -->
+        <div class="status-section">
+            <div class="status-bar">
+                <span class="status-label">Status:</span>
+                <span id="statusText" class="status-text">Ready</span>
+            </div>
+            
+            <div class="output-section" id="outputSection" style="display: none;">
+                <h3>Generated Command:</h3>
+                <div class="command-output">
+                    <code id="commandOutput"></code>
+                    <button class="btn btn-small" id="copyCommand">📋 Copy</button>
+                </div>
+                <div class="help-text" style="margin-top: 1rem;">
+                    <strong>Instructions:</strong>
+                    <ol style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                        <li>Configuration and rubric files are automatically saved to your project directory</li>
+                        <li>Copy and run the command above in your terminal from the project root</li>
+                        <li>The command will use your saved configuration including sample indices and rubrics</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Configuration Preview -->
+        <div class="preview-section">
+            <h3>📋 Current Configuration Preview</h3>
+            <div class="config-preview">
+                <div class="preview-item">
+                    <strong>System Prompt:</strong>
+                    <div id="previewSystemPrompt" class="preview-text">Not set</div>
+                </div>
+                <div class="preview-item">
+                    <strong>User Prompt:</strong>
+                    <div id="previewUserPrompt" class="preview-text">Not set</div>
+                </div>
+                <div class="preview-item">
+                    <strong>Sampling Parameters:</strong>
+                    <div id="previewSamplingParams" class="preview-text">Default values</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File input for loading configurations (hidden) -->
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+    <input type="file" id="promptFileInput" accept=".json" style="display: none;">
+
+    <script src="script.js"></script>
+</body>
+</html>
