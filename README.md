@@ -54,3 +54,11 @@ python src/analyze.py
 ```
 python src/analyze.py --generate-reports --figure
 ```
+
+## Citation
+If you find this code useful, please give a star and cite us as:
+```
+{
+    TBD
+}
+```
