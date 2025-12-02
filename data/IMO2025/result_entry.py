@@ -93,9 +93,9 @@ class IMO2025ResultSet(AbstractResultSet):
         self.unmatched_indices = []  # Reset unmatched indices list
         
         for i, entry in enumerate(self.entries):
-            pred_score = re.search(r'\\boxed{([0-9.]+)}', entry.response)
-            if pred_score:
-                entry.pred_score = float(pred_score.group(1))
+            matches = re.findall(r'\\boxed{([0-9.]+)}', entry.response)
+            if matches:
+                entry.pred_score = float(matches[-1])  # Take the last match
             else:
                 entry.pred_score = 0.0
                 self.unmatched_indices.append(i)

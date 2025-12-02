@@ -2,18 +2,22 @@
 
 ## GAUSS Eval: <br> Human–LLM Judge Consistency Analysis
 
-![3d](assets/3d.png)
+![3d](assets/tiga.png)
+> *Misc: Nano Banana generates this figure with typo and we leave it here.*
 
-<a href="https://gauss.ai/" target="_blank">
-    <img alt="Website" src="https://img.shields.io/badge/🌎_Website-gauss.ai-blue" height="25" /></a>
-
+<a href="https://gauss.ai/eval.html" target="_blank">
+    <img alt="Website" src="https://img.shields.io/badge/🌎_Blog-gauss.ai-blue" height="25" /></a>
+<a href="http://gaussmath.ai/assets/eval.pdf" target="_blank">
+    <img alt="Full Report" src="https://img.shields.io/badge/📄_Full_Report-gaussmath.ai-green" height="25" /></a>
+<a href="https://drive.google.com/drive/folders/14vNvBaMQUYvjDJcEeFgbfcUmVyyaOzpo" target="_blank">
+    <img alt="Run Logs" src="https://img.shields.io/badge/📁_Run_Logs-Google_Drive-orange" height="25" /></a>
 <div style="font-family: charter;">
 GAUSS Team
 </div>
 </div>
 
 ## Release
-- [Nov 28, 2025] We release the code and blog
+- [Dec 2., 2025] We release the code and blog/
 
 ## Usage
 
@@ -58,7 +62,11 @@ python src/analyze.py --generate-reports --figure
 ## Citation
 If you find this code useful, please give a star and cite us as:
 ```
-{
-    TBD
+@article{chu2025gausseval,
+  author = {Chu, Tianzhe and Zhang, Jiaxin and Liao, Zhenyu and Ren, Qiuyu and Saffat, Tahsin and Yang, Zitong and Ma, Yi and Zhang, Yue},
+  title = {GAUSS Eval: Human-LLM Judge Consistency Analysis},
+  year = {2025},
+  journal = {GAUSS Blogs},
+  note = {https://gaussmath.ai/eval.html}
 }
 ```

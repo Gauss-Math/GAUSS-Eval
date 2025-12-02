@@ -5,25 +5,7 @@ import json
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-try:
-    from src.gui_prompting import get_current_prompt, get_system_prompt, get_user_prompt
-except ImportError:
-    # Fallback if GUI module is not available
-    def get_current_prompt():
-        return ("You are an impartial grader. Your task is to evaluate a student's answer strictly according to the provided rubric and assign points out of {total_points}.", "")
-    
-    def get_system_prompt():
-        return "You are an impartial grader. Your task is to evaluate a student's answer strictly according to the provided rubric and assign points out of {total_points}."
-    
-    def get_user_prompt():
-        return ""
-
-try:
-    from src.gui_rubric import get_rubric_for_problem
-except ImportError:
-    # Fallback if rubric GUI module is not available
-    def get_rubric_for_problem(problem_idx):
-        return None
+from src.prompt_utils import get_current_prompt, get_system_prompt, get_user_prompt, get_rubric_for_problem
 
 
 def parse_prompt(data_item: dict) -> dict:

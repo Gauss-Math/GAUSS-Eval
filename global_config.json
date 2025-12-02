@@ -14,6 +14,6 @@
     "run_config":
     {
         "save_dir": "results/",
-        "num_processes": 1
+        "num_processes": 8
     }
 }

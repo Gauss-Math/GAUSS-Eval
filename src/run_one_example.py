@@ -24,7 +24,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from data import get_dataset_fn
-from src.gui_prompting import get_current_prompt, set_current_prompt
+from src.prompt_utils import get_current_prompt, set_current_prompt
 
 
 class RunOneExampleGUI:
@@ -550,27 +550,35 @@ class RunOneExampleGUI:
         
     def _open_prompt_editor(self):
         """Open the prompt editor in a new window."""
-        from src.gui_prompting import PromptGUI
-        
-        # Create new window for prompt editor
-        prompt_window = tk.Toplevel(self.root)
-        prompt_window.title("Prompt Editor")
-        prompt_window.geometry("900x700")
-        
-        # Create prompt GUI in the new window
-        prompt_gui = PromptGUI(prompt_window)
+        try:
+            from src.gui_prompting import PromptGUI
+            
+            # Create new window for prompt editor
+            prompt_window = tk.Toplevel(self.root)
+            prompt_window.title("Prompt Editor")
+            prompt_window.geometry("900x700")
+            
+            # Create prompt GUI in the new window
+            prompt_gui = PromptGUI(prompt_window)
+        except ImportError:
+            messagebox.showwarning("Feature Unavailable", 
+                                 "Prompt editor GUI is not available. Please use the web UI instead.")
         
     def _open_rubric_editor(self):
         """Open the rubric editor in a new window."""
-        from src.gui_rubric import RubricGUI
-        
-        # Create new window for rubric editor
-        rubric_window = tk.Toplevel(self.root)
-        rubric_window.title("Rubric Editor")
-        rubric_window.geometry("1000x700")
-        
-        # Create rubric GUI in the new window
-        rubric_gui = RubricGUI(rubric_window)
+        try:
+            from src.gui_rubric import RubricGUI
+            
+            # Create new window for rubric editor
+            rubric_window = tk.Toplevel(self.root)
+            rubric_window.title("Rubric Editor")
+            rubric_window.geometry("1000x700")
+            
+            # Create rubric GUI in the new window
+            rubric_gui = RubricGUI(rubric_window)
+        except ImportError:
+            messagebox.showwarning("Feature Unavailable", 
+                                 "Rubric editor GUI is not available. Please use the web UI instead.")
         
     def _run_example(self):
         """Run the current example(s)."""
