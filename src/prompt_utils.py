@@ -23,11 +23,47 @@ def _get_rubric_file_path():
     return project_root / ".rubric_config.json"
 
 
-def get_current_prompt() -> Tuple[str, str]:
+def get_current_prompt(global_config_path: Optional[str] = None) -> Tuple[str, str]:
     """
-    Get the current prompt from persistent storage.
+    Get the current prompt from global config or persistent storage.
     Returns a tuple of (system_prompt, user_prompt).
     Falls back to defaults if file doesn't exist or has errors.
+    
+    Args:
+        global_config_path: Optional path to global config file to check for prompts
+    
+    Returns:
+        tuple: (system_prompt: str, user_prompt: str)
+    """
+    # First, try to read from global config if provided
+    if global_config_path:
+        try:
+            with open(global_config_path, 'r', encoding='utf-8') as f:
+                global_config = json.load(f)
+                
+            # Check if prompts are defined in global config
+            if 'system_prompt' in global_config and 'user_prompt' in global_config:
+                return global_config['system_prompt'], global_config['user_prompt']
+            elif 'system_prompt' in global_config:
+                # Only system prompt in global config, get user prompt from other sources
+                system_prompt = global_config['system_prompt']
+                _, user_prompt = _get_prompt_from_file_or_default()
+                return system_prompt, user_prompt
+            elif 'user_prompt' in global_config:
+                # Only user prompt in global config, get system prompt from other sources
+                user_prompt = global_config['user_prompt']
+                system_prompt, _ = _get_prompt_from_file_or_default()
+                return system_prompt, user_prompt
+        except (json.JSONDecodeError, IOError, FileNotFoundError, Exception) as e:
+            print(f"Warning: Could not read global config file for prompts: {e}")
+    
+    # Fallback to persistent storage or defaults
+    return _get_prompt_from_file_or_default()
+
+
+def _get_prompt_from_file_or_default() -> Tuple[str, str]:
+    """
+    Helper function to get prompts from persistent storage file or defaults.
     
     Returns:
         tuple: (system_prompt: str, user_prompt: str)
@@ -49,25 +85,31 @@ def get_current_prompt() -> Tuple[str, str]:
     return DEFAULT_SYSTEM_PROMPT, DEFAULT_USER_PROMPT
 
 
-def get_system_prompt() -> str:
+def get_system_prompt(global_config_path: Optional[str] = None) -> str:
     """
     Get the current system prompt.
+    
+    Args:
+        global_config_path: Optional path to global config file to check for prompts
     
     Returns:
         str: The system prompt string
     """
-    system_prompt, _ = get_current_prompt()
+    system_prompt, _ = get_current_prompt(global_config_path)
     return system_prompt
 
 
-def get_user_prompt() -> str:
+def get_user_prompt(global_config_path: Optional[str] = None) -> str:
     """
     Get the current user prompt.
+    
+    Args:
+        global_config_path: Optional path to global config file to check for prompts
     
     Returns:
         str: The user prompt string
     """
-    _, user_prompt = get_current_prompt()
+    _, user_prompt = get_current_prompt(global_config_path)
     return user_prompt
 
 
@@ -149,4 +191,5 @@ def set_rubric_for_problem(problem_idx: str, rubric: Union[List[Dict[str, Any]],
             json.dump(rubrics, f, indent=2, ensure_ascii=False)
     except (IOError, Exception) as e:
         print(f"Warning: Could not save rubric file: {e}")
+
 

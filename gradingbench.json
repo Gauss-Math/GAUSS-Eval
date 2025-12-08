@@ -1,0 +1,27 @@
+{
+  "system_prompt": "",
+  "user_prompt": "You are an expert grader for the International Mathematics Olympiad\n(IMO). Your task is to evaluate a proposed solution strictly and\nrigorously. Keep in mind the standards at the IMO are extremely\nhigh: only arguments that are logically sound, complete, and\nprecise should be rewarded.\n### General Scoring Rubric\nScores are assigned on a 0-7 scale. The general guidelines are:\n* **7 Points (Correct):** The solution is complete, correct, and\nfully rigorous. If the submission contains incorrect attempts or\nlines of reasoning but ultimately presents a complete and correct solution, it should still be awarded full points; the presence of\nearlier, discarded work does not detract from the final correct\nproof.\n* **6 Points (Almost Correct):** The solution is almost correct with\na sound core argument, but contains minor errors in calculation\nor small gaps in logic. Missing proofs for major components,\nunjustified claims, or sketchy arguments are **not** eligible\nfor 6 points.\n* **1 Point (Partial Progress):** The solution demonstrates\nsubstantial progress explicitly mentioned in the grading\nguidelines. Initial observations, reformulating the problem\nwithout making substantive headway, or proving partial results\nnot mentioned in the grading guidelines are generally **not**\neligible for this score.\n* **0 Points (Incorrect):** The solution doesn’t make substantial\nprogress that is a key step in the full solution or is\nfundamentally flawed. All partial progress without key results\nor lacking rigor also fall in this category.\n### Input Data and Interpretation\nYou are provided with the following:\n1. **Problem Statement:** The IMO problem.\n2. **Ground Truth Solution:** A reference solution. Assume this\nsolution is correct. It demonstrates one valid approach.\n3. **Specific Grading Guidelines:** Criteria for awarding credit for\nthis specific problem. These guidelines take precedence over\nthe General Scoring Rubric, especially for partial credit.\n4. **Proposed Solution:** The student submission.\n### Evaluation Process\nYou must follow this structured process:\n1. **Analyze References:** Meticulously read and understand the\nproblem and Ground Truth Solution check the Specific Grading\nGuidelines. Identify the key steps for a complete solution and\nthe criteria for partial credit.\n2. **Step-by-Step Verification:** Verify the logical validity and\nrigor of every step. Identify all flaws, gaps, assumptions, and\nerrors. **Make sure you fully understand every piece of logic\nbehind each step of the proposed solution, you must be careful\nfor solutions that ’pretend’ to be correct.**\n3. **Assess Progress:** Determine the extent of non-trivial progress\nmade.\n4. **Score Determination:** Compare the findings against the\nSpecific Grading Guidelines and the General Rubric to determine\nthe final score.\n### Output Requirements\nYou must provide your final score in the format <points>N out of\n7</points>. Ensure the ‘<points>‘ block is used **only once**, asyour answer will be parsed based on the first <points> </points>\nblock that appears in your whole response.\n**PROBLEM STATEMENT**\n{problem_statement}\n**GROUND-TRUTH SOLUTION**\n{solution}\n**SPECIFIC GRADING GUIDELINES**\n{guidelines}\n**PROPOSED SOLUTION**\n{student_answer}\nPresent your detailed thought process and formal justification\nbased on the scoring rubric and grading guidelines, and finally\npresent your final score in the format below.\n[Select one of the following options]\n<points>7 out of 7</points>\n<points>6 out of 7</points>\n<points>1 out of 7</points>\n<points>0 out of 7</points>",
+  "sampling_params": {
+    "temperature": 0.1,
+    "max_tokens": 32768,
+    "top_p": 1,
+    "top_k": 0,
+    "frequency_penalty": 0,
+    "presence_penalty": 0,
+    "seed": 1234,
+    "num_retries": 5,
+    "timeout": 300
+  },
+  "run_config": {
+    "dataset": "GRADING_BENCH",
+    "model": "openrouter/openai/gpt-5",
+    "sample_indices": [],
+    "save_dir": "results/",
+    "num_processes": 8,
+    "async_mode": false,
+    "resume_from": ""
+  },
+  "project_root": "/Users/tianzhetrue/project/gauss_v2/gauss_v4/Gauss-Judge/tmp/GAUSS-Eval",
+  "timestamp": "2025-12-04T18:38:10.375Z",
+  "version": "1.0"
+}

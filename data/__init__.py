@@ -1,9 +1,10 @@
 from .IMO2025.imo import IMO2025Dataset
 from .USAMO2025.usamo import USAMO2025Dataset
 from .DEBUG.debug import DEBUGDataset
-
+from .GRADINGBENCH.gradingbench import GRADING_BENCHDataset
 get_dataset_fn = {
     "IMO2025": IMO2025Dataset(),
     "USAMO2025": USAMO2025Dataset(load_from_old=True),
-    "DEBUG": DEBUGDataset()
+    "DEBUG": DEBUGDataset(),
+    "GRADING_BENCH": GRADING_BENCHDataset()
 }
