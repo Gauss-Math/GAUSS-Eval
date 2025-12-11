@@ -173,7 +173,7 @@ def load_resume_config(resume_dir):
 
 def run_one_example_worker(args_tuple):
     """Worker function that processes a single example. Takes a tuple of arguments."""
-    data_item, model, dataset_name, save_dir, sampling_params = args_tuple
+    data_item, model, dataset_name, save_dir, sampling_params, global_config_path = args_tuple
     
     # Get process name for logging
     process_name = current_process().name
@@ -187,7 +187,7 @@ def run_one_example_worker(args_tuple):
         # Get dataset instance (each worker needs its own)
         dataset = get_dataset_fn[dataset_name]
         
-        prompt = dataset.parse_prompt(data_item)
+        prompt = dataset.parse_prompt(data_item, global_config_path)
         response = query_model(model, prompt, sampling_params)
         item_to_save = dataset.parse_response(response, data_item)
         
@@ -202,7 +202,7 @@ def run_one_example_worker(args_tuple):
         logger.error(f"Failed to process example {data_item['id']}: {e}", exc_info=True)
         return {'success': False, 'id': data_item['id'], 'error': str(e)}
 
-async def run_one_example_async(semaphore, data_item, model, dataset_name, save_dir, sampling_params, logger):
+async def run_one_example_async(semaphore, data_item, model, dataset_name, save_dir, sampling_params, logger, global_config_path):
     """Async worker function that processes a single example with concurrency control."""
     async with semaphore:
         try:
@@ -211,7 +211,7 @@ async def run_one_example_async(semaphore, data_item, model, dataset_name, save_
             # Get dataset instance
             dataset = get_dataset_fn[dataset_name]
             
-            prompt = dataset.parse_prompt(data_item)
+            prompt = dataset.parse_prompt(data_item, global_config_path)
             response = await query_model_async(model, prompt, sampling_params)
             item_to_save = dataset.parse_response(response, data_item)
             
@@ -235,7 +235,7 @@ async def process_examples_async(remaining_data, args, save_dir, sampling_params
     tasks = [
         run_one_example_async(
             semaphore, data_item, args.model, args.dataset, 
-            save_dir, sampling_params, logger
+            save_dir, sampling_params, logger, args.global_config
         )
         for data_item in remaining_data
     ]
@@ -369,7 +369,7 @@ def main():
 
     # Prepare arguments for each worker
     worker_args = [
-        (data_item, args.model, args.dataset, save_dir, sampling_params)
+        (data_item, args.model, args.dataset, save_dir, sampling_params, args.global_config)
         for data_item in remaining_data
     ]
 

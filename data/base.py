@@ -22,12 +22,13 @@ class BaseDataset:
         raise NotImplementedError
 
     @override   
-    def parse_prompt(self, data_item) -> dict:
+    def parse_prompt(self, data_item, global_config_path: str = None) -> dict:
         """
         parse the prompt from the data item
 
         Args:
             data_item: a dictionary of data item
+            global_config_path: path to global config file for prompts
 
         Returns:
             dict: a dictionary of parsed prompt

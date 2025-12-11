@@ -44,11 +44,11 @@ class IMO2025Dataset(BaseDataset):
             for i, data_item in enumerate(self.data):
                 data_item['id'] = i
     
-    def parse_prompt(self, data_item: Dict[str, Any]) -> Dict[str, Any]:
+    def parse_prompt(self, data_item: Dict[str, Any], global_config_path: str = None) -> Dict[str, Any]:
         """
         parse the prompt from the data item
         """
-        return parse_prompt(data_item)
+        return parse_prompt(data_item, global_config_path)
 
     
     def parse_response(self, response: Dict[str, Any], data_item: Dict[str, Any]) -> Dict[str, Any]:

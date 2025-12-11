@@ -15,5 +15,7 @@
     {
         "save_dir": "results/",
         "num_processes": 8
-    }
+    },
+    "system_prompt": "You are a helpful AI assistant for grading mathematical solutions.",
+    "user_prompt": "Please grade the following solution:\n\nProblem: {problem}\nRubric: {rubric}\nStudent Answer: {answer}\nTotal Points: {total_points}\n\nProvide a detailed grade and feedback."
 }

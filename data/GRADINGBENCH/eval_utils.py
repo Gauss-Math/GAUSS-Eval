@@ -8,7 +8,7 @@ sys.path.insert(0, str(project_root))
 from src.prompt_utils import get_current_prompt, get_system_prompt, get_user_prompt, get_rubric_for_problem
 
 
-def parse_prompt(data_item: dict) -> dict:
+def parse_prompt(data_item: dict, global_config_path: str = None) -> dict:
     """
     Parse the prompts from the data item.
     Uses the persistent prompts from the GUI storage file.
@@ -16,12 +16,15 @@ def parse_prompt(data_item: dict) -> dict:
     
     Args:
         data_item: Dictionary containing data item information (may contain total_points or other formatting variables)
+        global_config_path: Path to global config file for prompts
     
     Returns:
         dict: Dictionary with 'system_prompt' and 'user_prompt' keys
     """
     # Get the current prompts from persistent storage (reads from .prompt_config.json)
-    system_prompt, user_prompt = get_current_prompt("gradingbench.json")
+    # Use provided global_config_path or fall back to gradingbench.json
+    config_path = global_config_path if global_config_path else "gradingbench.json"
+    system_prompt, user_prompt = get_current_prompt(config_path)
     # total_points = data_item.get('max_points_judge_1', 7)
     
     # Check for edited rubric by problem_idx first
