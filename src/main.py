@@ -296,6 +296,19 @@ def main():
     # Get number of processes
     num_processes = global_config['run_config'].get('num_processes', 1)
     
+    # Check if seed is a list and handle multiple seeds
+    sampling_params = global_config['sampling_params'].copy()
+    seed_values = sampling_params.get('seed', None)
+    is_seed_list = isinstance(seed_values, list)
+    
+    if is_seed_list:
+        logger.info(f"Detected seed as list with {len(seed_values)} values: {seed_values}")
+        # We'll process each seed separately
+        seeds_to_process = seed_values
+    else:
+        # Single seed or no seed
+        seeds_to_process = [seed_values] if seed_values is not None else [None]
+    
     # Log run configuration
     logger.info("=" * 60)
     if resuming:
@@ -310,7 +323,9 @@ def main():
     else:
         logger.info(f"Mode: Multiprocessing (processes: {num_processes})")
     logger.info(f"Save directory: {save_dir}")
-    sampling_params = global_config['sampling_params']
+    if is_seed_list:
+        logger.info(f"Processing {len(seeds_to_process)} seeds: {seeds_to_process}")
+        logger.info(f"Will create subfolders: {[f'seed_{seed}' for seed in seeds_to_process]}")
     logger.info(f"Sampling params: {json.dumps(sampling_params, indent=2)}")
     logger.info("=" * 60)
 
@@ -352,98 +367,164 @@ def main():
             logger.error("No valid samples found after filtering by sample indices")
             return
 
-    # Filter out already completed examples if resuming
-    if resuming:
-        completed_ids = get_completed_ids(save_dir)
-        logger.info(f"Found {len(completed_ids)} already completed examples")
+    # Process each seed separately
+    all_results = []
+    all_summaries = []
+    
+    for seed_idx, seed_value in enumerate(seeds_to_process):
+        # Create seed-specific directory
+        if is_seed_list:
+            seed_save_dir = os.path.join(save_dir, f"seed_{seed_value}")
+            logger.info(f"Processing seed {seed_idx + 1}/{len(seeds_to_process)}: {seed_value}")
+            logger.info(f"Seed-specific save directory: {seed_save_dir}")
+        else:
+            seed_save_dir = save_dir
         
-        remaining_data = [item for item in dataset.data if item['id'] not in completed_ids]
-        logger.info(f"Remaining examples to process: {len(remaining_data)}")
+        # Create directory if it doesn't exist
+        Path(seed_save_dir).mkdir(parents=True, exist_ok=True)
         
-        if len(remaining_data) == 0:
-            logger.info("All examples already completed. Nothing to do.")
-            return
-    else:
-        remaining_data = dataset.data
-        completed_ids = set()
+        # Prepare seed-specific sampling params
+        seed_sampling_params = sampling_params.copy()
+        if seed_value is not None:
+            seed_sampling_params['seed'] = seed_value
+        elif 'seed' in seed_sampling_params:
+            # Remove seed key if seed_value is None
+            del seed_sampling_params['seed']
+        
+        logger.info(f"Seed-specific sampling params: {json.dumps(seed_sampling_params, indent=2)}")
+        
+        # Filter out already completed examples if resuming
+        if resuming:
+            completed_ids = get_completed_ids(seed_save_dir)
+            logger.info(f"Found {len(completed_ids)} already completed examples for seed {seed_value}")
+            
+            remaining_data = [item for item in dataset.data if item['id'] not in completed_ids]
+            logger.info(f"Remaining examples to process for seed {seed_value}: {len(remaining_data)}")
+            
+            if len(remaining_data) == 0:
+                logger.info(f"All examples already completed for seed {seed_value}. Skipping.")
+                continue
+        else:
+            remaining_data = dataset.data
+            completed_ids = set()
 
-    # Prepare arguments for each worker
-    worker_args = [
-        (data_item, args.model, args.dataset, save_dir, sampling_params, args.global_config)
-        for data_item in remaining_data
-    ]
+        # Prepare arguments for each worker
+        worker_args = [
+            (data_item, args.model, args.dataset, seed_save_dir, seed_sampling_params, args.global_config)
+            for data_item in remaining_data
+        ]
 
-    # Process examples based on mode
-    if getattr(args, 'async', False):
-        logger.info("Running in async mode")
-        logger.info(f"Max concurrent async requests: {num_processes}")
-        
-        # Run async processing
-        results = asyncio.run(process_examples_async(
-            remaining_data, args, save_dir, sampling_params, logger, num_processes
-        ))
-        
-        # Summarize results
-        successful = sum(1 for r in results if r['success'])
-        failed = len(results) - successful
-        logger.info(f"Async processing complete: {successful} successful, {failed} failed")
-        
-    elif num_processes > 1:
-        logger.info(f"Starting parallel processing with {num_processes} workers")
-        
-        # Use multiprocessing pool
-        with Pool(processes=num_processes) as pool:
-            # Process with progress bar
-            results = list(tqdm(
-                pool.imap(run_one_example_worker, worker_args),
-                total=len(worker_args),
-                desc="Processing examples"
+        # Process examples based on mode
+        if getattr(args, 'async', False):
+            logger.info(f"Running in async mode for seed {seed_value}")
+            logger.info(f"Max concurrent async requests: {num_processes}")
+            
+            # Run async processing
+            results = asyncio.run(process_examples_async(
+                remaining_data, args, seed_save_dir, seed_sampling_params, logger, num_processes
             ))
-        
-        # Summarize results
-        successful = sum(1 for r in results if r['success'])
-        failed = len(results) - successful
-        logger.info(f"Processing complete: {successful} successful, {failed} failed")
-        
-    else:
-        logger.info("Running in sequential mode (single process)")
-        results = []
-        for worker_arg in tqdm(worker_args, desc="Processing examples"):
-            result = run_one_example_worker(worker_arg)
-            results.append(result)
+            
+            # Summarize results
+            successful = sum(1 for r in results if r['success'])
+            failed = len(results) - successful
+            logger.info(f"Async processing complete for seed {seed_value}: {successful} successful, {failed} failed")
+            
+        elif num_processes > 1:
+            logger.info(f"Starting parallel processing with {num_processes} workers for seed {seed_value}")
+            
+            # Use multiprocessing pool
+            with Pool(processes=num_processes) as pool:
+                # Process with progress bar
+                results = list(tqdm(
+                    pool.imap(run_one_example_worker, worker_args),
+                    total=len(worker_args),
+                    desc=f"Processing examples (seed {seed_value})"
+                ))
+            
+            # Summarize results
+            successful = sum(1 for r in results if r['success'])
+            failed = len(results) - successful
+            logger.info(f"Processing complete for seed {seed_value}: {successful} successful, {failed} failed")
+            
+        else:
+            logger.info(f"Running in sequential mode (single process) for seed {seed_value}")
+            results = []
+            for worker_arg in tqdm(worker_args, desc=f"Processing examples (seed {seed_value})"):
+                result = run_one_example_worker(worker_arg)
+                results.append(result)
 
-    # Calculate total statistics (including previously completed)
-    total_successful = len(completed_ids) + sum(1 for r in results if r['success'])
-    total_failed = len(dataset.data) - total_successful
+        # Calculate total statistics for this seed (including previously completed)
+        total_successful = len(completed_ids) + sum(1 for r in results if r['success'])
+        total_failed = len(dataset.data) - total_successful
 
-    # Save summary
-    summary = {
-        'run_name': run_name,
-        'dataset': args.dataset,
-        'model': args.model,
-        'num_processes': num_processes,
-        'total_examples': len(dataset.data),
-        'successful': total_successful,
-        'failed': total_failed,
-        'resumed': resuming,
-        'previously_completed': len(completed_ids) if resuming else 0,
-        'newly_processed': len(results),
-        'sample_indices_used': sample_indices if sample_indices is not None else 'all',
-        'sample_indices_source': 'command_line' if args.sample_indices else ('config' if sample_indices is not None else 'all'),
-        'results': results
-    }
+        # Save seed-specific summary
+        seed_summary = {
+            'run_name': run_name,
+            'seed_value': seed_value,
+            'seed_directory': seed_save_dir,
+            'dataset': args.dataset,
+            'model': args.model,
+            'num_processes': num_processes,
+            'total_examples': len(dataset.data),
+            'successful': total_successful,
+            'failed': total_failed,
+            'resumed': resuming,
+            'previously_completed': len(completed_ids) if resuming else 0,
+            'newly_processed': len(results),
+            'sample_indices_used': sample_indices if sample_indices is not None else 'all',
+            'sample_indices_source': 'command_line' if args.sample_indices else ('config' if sample_indices is not None else 'all'),
+            'results': results
+        }
+        
+        seed_summary_path = os.path.join(seed_save_dir, 'summary.json')
+        with open(seed_summary_path, 'w') as f:
+            json.dump(seed_summary, f, indent=2)
+        
+        logger.info(f"Seed {seed_value} summary saved to: {seed_summary_path}")
+        
+        all_results.extend(results)
+        all_summaries.append(seed_summary)
+
+    # Save overall summary if processing multiple seeds
+    if is_seed_list:
+        overall_summary = {
+            'run_name': run_name,
+            'dataset': args.dataset,
+            'model': args.model,
+            'num_processes': num_processes,
+            'seeds_processed': seeds_to_process,
+            'total_seeds': len(seeds_to_process),
+            'total_examples_per_seed': len(dataset.data),
+            'total_examples_all_seeds': len(dataset.data) * len(seeds_to_process),
+            'seed_summaries': all_summaries,
+            'sample_indices_used': sample_indices if sample_indices is not None else 'all',
+            'sample_indices_source': 'command_line' if args.sample_indices else ('config' if sample_indices is not None else 'all'),
+        }
+        
+        overall_summary_path = os.path.join(save_dir, 'overall_summary.json')
+        with open(overall_summary_path, 'w') as f:
+            json.dump(overall_summary, f, indent=2)
+        
+        logger.info(f"Overall summary saved to: {overall_summary_path}")
     
-    summary_path = os.path.join(save_dir, 'summary.json')
-    with open(summary_path, 'w') as f:
-        json.dump(summary, f, indent=2)
-    
-    logger.info(f"Summary saved to: {summary_path}")
     logger.info("=" * 60)
     logger.info("Run completed successfully")
-    if resuming:
-        logger.info(f"Total completed: {total_successful}/{len(dataset.data)}")
-        logger.info(f"Previously completed: {len(completed_ids)}")
-        logger.info(f"Newly processed: {len(results)}")
+    if is_seed_list:
+        logger.info(f"Processed {len(seeds_to_process)} seeds: {seeds_to_process}")
+        for summary in all_summaries:
+            seed_val = summary['seed_value']
+            successful = summary['successful']
+            total = summary['total_examples']
+            logger.info(f"  Seed {seed_val}: {successful}/{total} successful")
+    else:
+        if resuming:
+            total_successful = all_summaries[0]['successful'] if all_summaries else 0
+            total_examples = all_summaries[0]['total_examples'] if all_summaries else 0
+            previously_completed = all_summaries[0]['previously_completed'] if all_summaries else 0
+            newly_processed = all_summaries[0]['newly_processed'] if all_summaries else 0
+            logger.info(f"Total completed: {total_successful}/{total_examples}")
+            logger.info(f"Previously completed: {previously_completed}")
+            logger.info(f"Newly processed: {newly_processed}")
     logger.info("=" * 60)
 
 if __name__ == "__main__":
