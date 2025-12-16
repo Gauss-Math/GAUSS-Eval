@@ -8,7 +8,7 @@
       "top_k": 0,
       "frequency_penalty": 0,
       "presence_penalty": 0,
-      "seed": 1234,
+      "seed": [1234,1235,1236,1237],
       "num_retries": 5,
       "timeout": 300
     },

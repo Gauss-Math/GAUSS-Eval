@@ -123,6 +123,10 @@ let datasetInfo = {
 let currentRubrics = {}; // Maps problem_idx to rubric data
 let selectedRubricProblem = null;
 
+// Seed state
+let currentSeedMode = 'single'; // 'single' or 'list'
+let currentSeedList = []; // Array of seed values when in list mode
+
 // Hardcoded real dataset information
 const realDatasetData = {
     "USAMO2025": {
@@ -175,7 +179,19 @@ const elements = {
     frequencyPenaltySlider: document.getElementById('frequencyPenaltySlider'),
     presencePenalty: document.getElementById('presencePenalty'),
     presencePenaltySlider: document.getElementById('presencePenaltySlider'),
-    seed: document.getElementById('seed'),
+    seed: document.getElementById('seed'), // Keep for backward compatibility
+    seedModeSingle: document.getElementById('seedModeSingle'),
+    seedModeList: document.getElementById('seedModeList'),
+    seedSingle: document.getElementById('seedSingle'),
+    seedSingleMode: document.getElementById('seedSingleMode'),
+    seedListMode: document.getElementById('seedListMode'),
+    seedListInput: document.getElementById('seedListInput'),
+    seedList: document.getElementById('seedList'),
+    addSeedFromInput: document.getElementById('addSeedFromInput'),
+    addRandomSeed: document.getElementById('addRandomSeed'),
+    clearAllSeeds: document.getElementById('clearAllSeeds'),
+    seedHelpSingle: document.getElementById('seedHelpSingle'),
+    seedHelpList: document.getElementById('seedHelpList'),
     numRetries: document.getElementById('numRetries'),
     timeout: document.getElementById('timeout'),
     
@@ -337,6 +353,121 @@ function validateNumericInput(input, min, max) {
     });
 }
 
+// Seed management functions
+function switchSeedMode(mode) {
+    currentSeedMode = mode;
+    
+    if (mode === 'single') {
+        elements.seedSingleMode.style.display = 'block';
+        elements.seedListMode.style.display = 'none';
+        elements.seedHelpSingle.style.display = 'inline';
+        elements.seedHelpList.style.display = 'none';
+    } else {
+        elements.seedSingleMode.style.display = 'none';
+        elements.seedListMode.style.display = 'block';
+        elements.seedHelpSingle.style.display = 'none';
+        elements.seedHelpList.style.display = 'inline';
+    }
+    
+    updateConfig();
+}
+
+function addSeedToList(seedValue) {
+    const seed = parseInt(seedValue);
+    if (isNaN(seed)) {
+        updateStatus('Invalid seed value. Please enter a number.', 'error');
+        return false;
+    }
+    
+    if (currentSeedList.includes(seed)) {
+        updateStatus('Seed already exists in the list.', 'warning');
+        return false;
+    }
+    
+    currentSeedList.push(seed);
+    renderSeedList();
+    updateConfig();
+    return true;
+}
+
+function removeSeedFromList(seed) {
+    const index = currentSeedList.indexOf(seed);
+    if (index > -1) {
+        currentSeedList.splice(index, 1);
+        renderSeedList();
+        updateConfig();
+    }
+}
+
+function clearSeedList() {
+    currentSeedList = [];
+    renderSeedList();
+    updateConfig();
+}
+
+function generateRandomSeed() {
+    return Math.floor(Math.random() * 10000) + 1000; // Generate 4-digit random seed
+}
+
+function renderSeedList() {
+    const container = elements.seedList;
+    container.innerHTML = '';
+    
+    if (currentSeedList.length === 0) {
+        return; // CSS will show the empty state message
+    }
+    
+    currentSeedList.forEach((seed, index) => {
+        const seedItem = document.createElement('div');
+        seedItem.className = 'seed-item';
+        seedItem.innerHTML = `
+            <span class="seed-value">${seed}</span>
+            <div class="seed-item-controls">
+                <button type="button" class="btn btn-secondary" onclick="moveSeed(${index}, 'up')" ${index === 0 ? 'disabled' : ''}>↑</button>
+                <button type="button" class="btn btn-secondary" onclick="moveSeed(${index}, 'down')" ${index === currentSeedList.length - 1 ? 'disabled' : ''}>↓</button>
+                <button type="button" class="btn btn-danger" onclick="removeSeedFromList(${seed})">✕</button>
+            </div>
+        `;
+        container.appendChild(seedItem);
+    });
+    
+    // Add count display
+    const countDisplay = document.createElement('div');
+    countDisplay.className = 'seed-count-display';
+    countDisplay.textContent = `${currentSeedList.length} seed${currentSeedList.length !== 1 ? 's' : ''} configured`;
+    container.appendChild(countDisplay);
+}
+
+function moveSeed(index, direction) {
+    if (direction === 'up' && index > 0) {
+        [currentSeedList[index], currentSeedList[index - 1]] = [currentSeedList[index - 1], currentSeedList[index]];
+    } else if (direction === 'down' && index < currentSeedList.length - 1) {
+        [currentSeedList[index], currentSeedList[index + 1]] = [currentSeedList[index + 1], currentSeedList[index]];
+    }
+    
+    renderSeedList();
+    updateConfig();
+}
+
+function parseSeedListFromInput(input) {
+    if (!input.trim()) {
+        return [];
+    }
+    
+    const seeds = [];
+    const parts = input.split(',');
+    
+    for (const part of parts) {
+        const trimmed = part.trim();
+        const seed = parseInt(trimmed);
+        if (!isNaN(seed)) {
+            seeds.push(seed);
+        }
+    }
+    
+    return seeds;
+}
+
 // Configuration management
 function updateConfig() {
     // Update prompts
@@ -350,7 +481,21 @@ function updateConfig() {
     currentConfig.sampling_params.top_k = parseInt(elements.topK.value);
     currentConfig.sampling_params.frequency_penalty = parseFloat(elements.frequencyPenalty.value);
     currentConfig.sampling_params.presence_penalty = parseFloat(elements.presencePenalty.value);
-    currentConfig.sampling_params.seed = parseInt(elements.seed.value);
+    
+    // Handle seed based on current mode
+    if (currentSeedMode === 'single') {
+        currentConfig.sampling_params.seed = parseInt(elements.seedSingle.value);
+    } else {
+        // List mode - use array if multiple seeds, single value if only one
+        if (currentSeedList.length === 0) {
+            currentConfig.sampling_params.seed = 1234; // Default fallback
+        } else if (currentSeedList.length === 1) {
+            currentConfig.sampling_params.seed = currentSeedList[0];
+        } else {
+            currentConfig.sampling_params.seed = [...currentSeedList]; // Create copy of array
+        }
+    }
+    
     currentConfig.sampling_params.num_retries = parseInt(elements.numRetries.value);
     currentConfig.sampling_params.timeout = parseInt(elements.timeout.value);
     
@@ -382,7 +527,25 @@ function loadConfigToUI(config) {
     elements.frequencyPenaltySlider.value = config.sampling_params.frequency_penalty;
     elements.presencePenalty.value = config.sampling_params.presence_penalty;
     elements.presencePenaltySlider.value = config.sampling_params.presence_penalty;
-    elements.seed.value = config.sampling_params.seed;
+    
+    // Handle seed loading based on type
+    const seedValue = config.sampling_params.seed;
+    if (Array.isArray(seedValue)) {
+        // List mode
+        currentSeedMode = 'list';
+        currentSeedList = [...seedValue];
+        elements.seedModeList.checked = true;
+        switchSeedMode('list');
+        renderSeedList();
+    } else {
+        // Single mode
+        currentSeedMode = 'single';
+        currentSeedList = [];
+        elements.seedModeSingle.checked = true;
+        elements.seedSingle.value = seedValue || 1234;
+        switchSeedMode('single');
+    }
+    
     elements.numRetries.value = config.sampling_params.num_retries;
     elements.timeout.value = config.sampling_params.timeout;
     
@@ -414,7 +577,14 @@ function updatePreview() {
         : userPreview;
     
     // Update sampling params preview
-    const samplingPreview = `Temperature: ${currentConfig.sampling_params.temperature}, Max Tokens: ${currentConfig.sampling_params.max_tokens}, Top P: ${currentConfig.sampling_params.top_p}`;
+    let seedPreview = '';
+    if (Array.isArray(currentConfig.sampling_params.seed)) {
+        seedPreview = `Seeds: [${currentConfig.sampling_params.seed.join(', ')}] (${currentConfig.sampling_params.seed.length} seeds)`;
+    } else {
+        seedPreview = `Seed: ${currentConfig.sampling_params.seed}`;
+    }
+    
+    const samplingPreview = `Temperature: ${currentConfig.sampling_params.temperature}, Max Tokens: ${currentConfig.sampling_params.max_tokens}, Top P: ${currentConfig.sampling_params.top_p}, ${seedPreview}`;
     elements.previewSamplingParams.textContent = samplingPreview;
     
     // Update dataset and sample info in preview
@@ -812,11 +982,67 @@ function setupEventListeners() {
     validateNumericInput(elements.presencePenalty, -2, 2);
     
     // Other form inputs
-    [elements.maxTokens, elements.topK, elements.seed, elements.numRetries, elements.timeout,
+    [elements.maxTokens, elements.topK, elements.seedSingle, elements.numRetries, elements.timeout,
      elements.dataset, elements.model, elements.sampleIndices, elements.saveDir, elements.numProcesses,
      elements.asyncMode, elements.resumeFrom].forEach(element => {
         element.addEventListener('change', updateConfig);
         element.addEventListener('input', updateConfig);
+    });
+    
+    // Seed mode switching
+    elements.seedModeSingle.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            switchSeedMode('single');
+        }
+    });
+    
+    elements.seedModeList.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            switchSeedMode('list');
+        }
+    });
+    
+    // Seed list management
+    elements.addSeedFromInput.addEventListener('click', () => {
+        const input = elements.seedListInput.value.trim();
+        if (input) {
+            const seeds = parseSeedListFromInput(input);
+            let addedCount = 0;
+            
+            seeds.forEach(seed => {
+                if (addSeedToList(seed)) {
+                    addedCount++;
+                }
+            });
+            
+            if (addedCount > 0) {
+                elements.seedListInput.value = '';
+                updateStatus(`Added ${addedCount} seed${addedCount !== 1 ? 's' : ''} to the list`);
+            }
+        }
+    });
+    
+    elements.addRandomSeed.addEventListener('click', () => {
+        const randomSeed = generateRandomSeed();
+        if (addSeedToList(randomSeed)) {
+            updateStatus(`Added random seed: ${randomSeed}`);
+        }
+    });
+    
+    elements.clearAllSeeds.addEventListener('click', () => {
+        if (currentSeedList.length > 0) {
+            if (confirm(`Are you sure you want to clear all ${currentSeedList.length} seeds?`)) {
+                clearSeedList();
+                updateStatus('All seeds cleared');
+            }
+        }
+    });
+    
+    // Allow Enter key to add seeds
+    elements.seedListInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            elements.addSeedFromInput.click();
+        }
     });
     
     // Button event listeners
@@ -1316,6 +1542,10 @@ window.updateRubricItem = updateRubricItem;
 window.addRubricItem = addRubricItem;
 window.removeRubricItem = removeRubricItem;
 window.moveRubricItem = moveRubricItem;
+
+// Make seed functions globally accessible for HTML onclick handlers
+window.removeSeedFromList = removeSeedFromList;
+window.moveSeed = moveSeed;
 
 // Start the application
 document.addEventListener('DOMContentLoaded', () => {

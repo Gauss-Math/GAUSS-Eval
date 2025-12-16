@@ -117,8 +117,42 @@
 
                     <div class="form-group">
                         <label for="seed">Seed:</label>
-                        <input type="number" id="seed" class="form-control" value="1234">
-                        <div class="help-text">Random seed for reproducibility</div>
+                        <div class="seed-input-container">
+                            <div class="seed-mode-selector">
+                                <label>
+                                    <input type="radio" name="seedMode" value="single" id="seedModeSingle" checked>
+                                    Single Seed
+                                </label>
+                                <label>
+                                    <input type="radio" name="seedMode" value="list" id="seedModeList">
+                                    Multiple Seeds
+                                </label>
+                            </div>
+                            
+                            <!-- Single seed mode -->
+                            <div id="seedSingleMode" class="seed-mode-content">
+                                <input type="number" id="seedSingle" class="form-control" value="1234">
+                            </div>
+                            
+                            <!-- Multiple seeds mode -->
+                            <div id="seedListMode" class="seed-mode-content" style="display: none;">
+                                <div class="seed-list-controls">
+                                    <input type="text" id="seedListInput" class="form-control" placeholder="Enter seeds separated by commas (e.g., 1234, 1235, 1236)">
+                                    <button type="button" class="btn btn-secondary btn-small" id="addSeedFromInput">Add</button>
+                                </div>
+                                <div id="seedList" class="seed-list">
+                                    <!-- Seed items will be added here dynamically -->
+                                </div>
+                                <div class="seed-list-actions">
+                                    <button type="button" class="btn btn-secondary btn-small" id="addRandomSeed">+ Random</button>
+                                    <button type="button" class="btn btn-secondary btn-small" id="clearAllSeeds">Clear All</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="help-text">
+                            <span id="seedHelpSingle">Random seed for reproducibility</span>
+                            <span id="seedHelpList" style="display: none;">Multiple seeds will create separate result folders for each seed</span>
+                        </div>
                     </div>
 
                     <div class="form-group">
