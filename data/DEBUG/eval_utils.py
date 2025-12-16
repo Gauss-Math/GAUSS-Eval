@@ -27,7 +27,7 @@ def parse_prompt(data_item: dict, global_config_path: str = None) -> dict:
     
     # Check for edited rubric by problem_idx first
     problem_idx = data_item.get("problem_idx", "")
-    edited_rubric = get_rubric_for_problem(str(problem_idx)) if problem_idx else None
+    edited_rubric = get_rubric_for_problem(str(problem_idx), global_config_path) if problem_idx else None
     
     if edited_rubric is not None:
         # Use edited rubric - handle both string and structured formats
@@ -62,30 +62,32 @@ def parse_prompt(data_item: dict, global_config_path: str = None) -> dict:
     }
 
 
-def parse_system_prompt(data_item: dict) -> str:
+def parse_system_prompt(data_item: dict, global_config_path: str = None) -> str:
     """
     Parse only the system prompt from the data item.
     
     Args:
         data_item: Dictionary containing data item information
+        global_config_path: Path to global config file for prompts
     
     Returns:
         str: The system prompt string
     """
-    return get_system_prompt()
+    return get_system_prompt(global_config_path)
 
 
-def parse_user_prompt(data_item: dict) -> str:
+def parse_user_prompt(data_item: dict, global_config_path: str = None) -> str:
     """
     Parse only the user prompt from the data item.
     
     Args:
         data_item: Dictionary containing data item information
+        global_config_path: Path to global config file for prompts
     
     Returns:
         str: The user prompt string
     """
-    return get_user_prompt()
+    return get_user_prompt(global_config_path)
 
 
 def get_dataset_imo2025(data_path: str = "data/IMO2025/data.json") -> list:

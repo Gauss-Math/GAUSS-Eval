@@ -450,23 +450,28 @@ function updatePreview() {
 
 // File operations
 function saveConfiguration() {
-    const config = {
-        ...currentConfig,
-        timestamp: new Date().toISOString(),
-        version: "1.0"
-    };
+    const unifiedConfig = createUnifiedConfig();
     
-    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(unifiedConfig, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gauss-judge-config-${Date.now()}.json`;
+    
+    // Generate descriptive filename
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-').split('T')[0] + '_' + 
+                     now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    const dataset = currentConfig.run_config.dataset;
+    const sampleCount = currentConfig.run_config.sample_indices ? 
+                       currentConfig.run_config.sample_indices.length : 'all';
+    a.download = `config_${dataset}_${sampleCount}samples_${timestamp}.json`;
+    
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    updateStatus('Configuration saved successfully!');
+    updateStatus('Unified configuration saved successfully!');
 }
 
 function loadConfiguration(file) {
@@ -474,6 +479,12 @@ function loadConfiguration(file) {
     reader.onload = (e) => {
         try {
             const config = JSON.parse(e.target.result);
+            
+            // Handle unified format - extract rubrics if present
+            if (config.rubrics) {
+                currentRubrics = { ...config.rubrics };
+                updateStatus('Loaded configuration with rubrics', 'info');
+            }
             
             // Merge with default config to ensure all fields exist
             const mergedConfig = {
@@ -485,7 +496,17 @@ function loadConfiguration(file) {
             
             currentConfig = mergedConfig;
             loadConfigToUI(currentConfig);
-            updateStatus('Configuration loaded successfully!');
+            
+            // Update rubric UI if rubrics were loaded
+            if (config.rubrics) {
+                updateRubricProblemOptions();
+                // If a rubric problem is currently selected, refresh its display
+                if (selectedRubricProblem && currentRubrics[selectedRubricProblem]) {
+                    loadRubricForProblem(selectedRubricProblem);
+                }
+            }
+            
+            updateStatus('Unified configuration loaded successfully!');
         } catch (error) {
             updateStatus('Error loading configuration: ' + error.message, 'error');
         }
@@ -561,12 +582,12 @@ async function generateCommand() {
         elements.outputSection.style.display = 'block';
         
         const projectRoot = currentConfig.project_root || 'project directory';
-        let statusMessage = `✅ Files saved to ${projectRoot}:\n`;
-        statusMessage += `📄 ${result.configFilename}\n`;
+        let statusMessage = `✅ Unified config saved to ${projectRoot}:\n`;
+        statusMessage += `📄 ${result.configFilename}`;
         if (result.rubricSaved) {
-            statusMessage += `📝 .rubric_config.json\n`;
+            statusMessage += ` (includes rubrics)`;
         }
-        statusMessage += `🚀 Command generated!`;
+        statusMessage += `\n🚀 Command generated!`;
         
         updateStatus(statusMessage, 'success');
     } catch (error) {
@@ -574,22 +595,48 @@ async function generateCommand() {
     }
 }
 
+// Create unified configuration object with all information
+function createUnifiedConfig() {
+    // Ensure current rubric is saved if in text mode
+    if (selectedRubricProblem && elements.rubricModeText && elements.rubricModeText.checked) {
+        currentRubrics[selectedRubricProblem] = elements.rubricTextContent.value;
+    }
+    
+    // Create the unified config that matches the backend format
+    const unifiedConfig = {
+        system_prompt: currentConfig.system_prompt,
+        user_prompt: currentConfig.user_prompt,
+        sampling_params: currentConfig.sampling_params,
+        run_config: {
+            dataset: currentConfig.run_config.dataset,
+            model: currentConfig.run_config.model,
+            save_dir: currentConfig.run_config.save_dir,
+            num_processes: currentConfig.run_config.num_processes,
+            async_mode: currentConfig.run_config.async_mode,
+            resume_from: currentConfig.run_config.resume_from
+        },
+        project_root: currentConfig.project_root,
+        timestamp: new Date().toISOString(),
+        version: "1.0"
+    };
+    
+    // Add sample indices if specified
+    if (currentConfig.run_config.sample_indices && currentConfig.run_config.sample_indices.length > 0) {
+        unifiedConfig.run_config.sample_indices = currentConfig.run_config.sample_indices;
+    }
+    
+    // Add rubrics if any exist
+    if (Object.keys(currentRubrics).length > 0) {
+        unifiedConfig.rubrics = { ...currentRubrics };
+    }
+    
+    return unifiedConfig;
+}
+
 // Save configuration and rubrics to project directory via server API
 async function saveConfigurationAndRubricsToProject() {
     try {
-        // Create the export config (same format as exportConfig button)
-        const exportConfig = {
-            sampling_params: currentConfig.sampling_params,
-            run_config: {
-                save_dir: currentConfig.run_config.save_dir,
-                num_processes: currentConfig.run_config.num_processes
-            }
-        };
-        
-        // Add sample indices if specified
-        if (currentConfig.run_config.sample_indices && currentConfig.run_config.sample_indices.length > 0) {
-            exportConfig.run_config.sample_indices = currentConfig.run_config.sample_indices;
-        }
+        const unifiedConfig = createUnifiedConfig();
         
         // Generate descriptive filename with timestamp and dataset info
         const now = new Date();
@@ -600,7 +647,7 @@ async function saveConfigurationAndRubricsToProject() {
                            currentConfig.run_config.sample_indices.length : 'all';
         const configFilename = `config_${dataset}_${sampleCount}samples_${timestamp}.json`;
         
-        // Save configuration file
+        // Save unified configuration file
         const configResponse = await fetch('/api/save', {
             method: 'POST',
             headers: {
@@ -608,7 +655,7 @@ async function saveConfigurationAndRubricsToProject() {
             },
             body: JSON.stringify({
                 filename: configFilename,
-                content: JSON.stringify(exportConfig, null, 4)
+                content: JSON.stringify(unifiedConfig, null, 4)
             })
         });
         
@@ -619,37 +666,11 @@ async function saveConfigurationAndRubricsToProject() {
         
         const configResult = await configResponse.json();
         
-        // Save rubric file if there are any rubrics
-        let rubricSaved = false;
-        if (Object.keys(currentRubrics).length > 0) {
-            // Ensure current rubric is saved if in text mode
-            if (selectedRubricProblem && elements.rubricModeText && elements.rubricModeText.checked) {
-                currentRubrics[selectedRubricProblem] = elements.rubricTextContent.value;
-            }
-            
-            const rubricResponse = await fetch('/api/save', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    filename: '.rubric_config.json',
-                    content: JSON.stringify(currentRubrics, null, 2)
-                })
-            });
-            
-            if (rubricResponse.ok) {
-                rubricSaved = true;
-            } else {
-                console.warn('Failed to save rubric file, but continuing...');
-            }
-        }
-        
         return {
             success: true,
             configFilename: configFilename,
             configPath: configResult.path,
-            rubricSaved: rubricSaved
+            rubricSaved: Object.keys(currentRubrics).length > 0
         };
         
     } catch (error) {
@@ -813,21 +834,10 @@ function setupEventListeners() {
     });
     
     elements.exportConfig.addEventListener('click', () => {
-        // Create a config file suitable for the Python script
-        const exportConfig = {
-            sampling_params: currentConfig.sampling_params,
-            run_config: {
-                save_dir: currentConfig.run_config.save_dir,
-                num_processes: currentConfig.run_config.num_processes
-            }
-        };
+        // Use the same unified format for export
+        const unifiedConfig = createUnifiedConfig();
         
-        // Add sample indices if specified
-        if (currentConfig.run_config.sample_indices && currentConfig.run_config.sample_indices.length > 0) {
-            exportConfig.run_config.sample_indices = currentConfig.run_config.sample_indices;
-        }
-        
-        const blob = new Blob([JSON.stringify(exportConfig, null, 4)], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(unifiedConfig, null, 4)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -837,7 +847,7 @@ function setupEventListeners() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        updateStatus('Global config exported successfully! Use with --global_config global_config.json');
+        updateStatus('Unified config exported successfully! Use with --global_config global_config.json');
     });
     
     elements.generateCommand.addEventListener('click', generateCommand);
@@ -1234,35 +1244,16 @@ async function saveRubric() {
     }
     
     try {
-        updateStatus('Saving rubric configuration...', 'info');
+        updateStatus('Saving unified configuration with rubrics...', 'info');
         
-        // Ensure current rubric is saved based on active mode
-        if (elements.rubricModeText.checked) {
-            currentRubrics[selectedRubricProblem] = elements.rubricTextContent.value;
+        // Use the unified save function which includes rubrics
+        const result = await saveConfigurationAndRubricsToProject();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to save configuration');
         }
         
-        // Create the rubric config file content
-        const rubricConfig = { ...currentRubrics };
-        
-        // Save rubric file to project directory
-        const response = await fetch('/api/save', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                filename: '.rubric_config.json',
-                content: JSON.stringify(rubricConfig, null, 2)
-            })
-        });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to save rubric');
-        }
-        
-        const result = await response.json();
-        updateStatus(`✅ Rubric configuration saved to ${result.path}`, 'success');
+        updateStatus(`✅ Unified configuration with rubrics saved to ${result.configFilename}`, 'success');
         
     } catch (error) {
         updateStatus('Error saving rubric: ' + error.message, 'error');

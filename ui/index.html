@@ -278,12 +278,12 @@
         <!-- Action Buttons -->
         <div class="action-bar">
             <div class="action-group">
-                <button class="btn btn-primary" id="saveConfig">💾 Save Configuration</button>
+                <button class="btn btn-primary" id="saveConfig">💾 Download Config</button>
                 <button class="btn btn-secondary" id="loadConfig">📁 Load Configuration</button>
                 <button class="btn btn-secondary" id="exportConfig">📤 Export Config</button>
             </div>
             <div class="action-group">
-                <button class="btn btn-success" id="generateCommand">💾⚡ Save & Generate Command</button>
+                <button class="btn btn-success" id="generateCommand">💾⚡ Save to Project & Generate Command</button>
             </div>
         </div>
 
@@ -303,9 +303,9 @@
                 <div class="help-text" style="margin-top: 1rem;">
                     <strong>Instructions:</strong>
                     <ol style="margin: 0.5rem 0; padding-left: 1.5rem;">
-                        <li>Configuration and rubric files are automatically saved to your project directory</li>
+                        <li>Unified configuration file (with prompts, rubrics, and settings) is saved to your project directory</li>
                         <li>Copy and run the command above in your terminal from the project root</li>
-                        <li>The command will use your saved configuration including sample indices and rubrics</li>
+                        <li>The command will use your complete configuration including prompts, sample indices, and rubrics</li>
                     </ol>
                 </div>
             </div>
@@ -335,6 +335,6 @@
     <input type="file" id="fileInput" accept=".json" style="display: none;">
     <input type="file" id="promptFileInput" accept=".json" style="display: none;">
 
-    <script src="script.js"></script>
+    <script src="script.js?v=2025121201"></script>
 </body>
 </html>

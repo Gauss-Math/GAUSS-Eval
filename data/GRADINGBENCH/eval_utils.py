@@ -29,7 +29,7 @@ def parse_prompt(data_item: dict, global_config_path: str = None) -> dict:
     
     # Check for edited rubric by problem_idx first
     problem_idx = data_item.get("problem_idx", "")
-    edited_rubric = get_rubric_for_problem(str(problem_idx)) if problem_idx else None
+    edited_rubric = get_rubric_for_problem(str(problem_idx), config_path) if problem_idx else None
     
     if edited_rubric is not None:
         # Use edited rubric - handle both string and structured formats

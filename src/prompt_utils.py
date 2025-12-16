@@ -135,11 +135,37 @@ def set_current_prompt(system_prompt: str, user_prompt: str):
         print(f"Warning: Could not save prompt file: {e}")
 
 
-def get_current_rubrics() -> Dict[str, List[Dict[str, Any]]]:
+def get_current_rubrics(global_config_path: Optional[str] = None) -> Dict[str, List[Dict[str, Any]]]:
     """
-    Get the current rubrics from persistent storage.
+    Get the current rubrics from global config or persistent storage.
     Returns a dictionary mapping problem_idx to rubric list.
     Falls back to empty dict if file doesn't exist or has errors.
+    
+    Args:
+        global_config_path: Optional path to global config file to check for rubrics
+    
+    Returns:
+        dict: Dictionary mapping problem_idx to list of rubric items
+    """
+    # First, try to read from global config if provided
+    if global_config_path:
+        try:
+            with open(global_config_path, 'r', encoding='utf-8') as f:
+                global_config = json.load(f)
+                
+            # Check if rubrics are defined in global config
+            if 'rubrics' in global_config:
+                return global_config['rubrics']
+        except (json.JSONDecodeError, IOError, FileNotFoundError, Exception) as e:
+            print(f"Warning: Could not read global config file for rubrics: {e}")
+    
+    # Fallback to persistent storage or empty dict
+    return _get_rubrics_from_file_or_default()
+
+
+def _get_rubrics_from_file_or_default() -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Helper function to get rubrics from persistent storage file or defaults.
     
     Returns:
         dict: Dictionary mapping problem_idx to list of rubric items
@@ -159,17 +185,18 @@ def get_current_rubrics() -> Dict[str, List[Dict[str, Any]]]:
     return {}
 
 
-def get_rubric_for_problem(problem_idx: str) -> Optional[Union[List[Dict[str, Any]], str]]:
+def get_rubric_for_problem(problem_idx: str, global_config_path: Optional[str] = None) -> Optional[Union[List[Dict[str, Any]], str]]:
     """
     Get the rubric for a specific problem_idx.
     
     Args:
         problem_idx: The problem index to get rubric for
+        global_config_path: Optional path to global config file to check for rubrics
     
     Returns:
         Union[list, str]: The rubric (list of items or string) for the problem, or None if not found
     """
-    rubrics = get_current_rubrics()
+    rubrics = get_current_rubrics(global_config_path)
     return rubrics.get(problem_idx, None)
 
 

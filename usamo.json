@@ -1,0 +1,27 @@
+{
+  "system_prompt": "",
+  "user_prompt": "You are an impartial grader. Your task is to evaluate a student's answer strictly according to the provided rubric and assign points out of {total_points}.\n\nInputs:\n\n- Problem:\n    \n    {problem}\n    \n- Student Answer:\n    \n    {answer}\n    \n- Rubric (authoritative; use for all scoring and interpretations):\n    \n    {rubric}\n    \n\nGrading procedure:\n\n1. Understand the problem and rubric:\n    - Prioritize the rubric over general knowledge.\n    - If the rubric conflicts with common conventions, follow the rubric.\n    - If the rubric lacks a criterion, do not invent new ones; grade only on what is specified.\n2. Evidence-based evaluation:\n    - Cite specific parts of the student's answer when justifying each deduction or award.\n    - If the student's reasoning is correct but uses different wording or a valid alternative method, award credit as long as it satisfies the rubric.\n3. Partial credit:\n    - Award partial credit per rubric guidelines.\n    - If the rubric does not specify point splits, proportionally allocate points based on how much of each criterion is satisfied.\n    - Do not penalize the same mistake multiple times unless the rubric explicitly states compound penalties.\n4. Handling ambiguity and missing information:\n    - If the answer is incomplete, contradictory, or guesses, evaluate only what is present; do not infer unstated steps.\n    - If the problem requires a final value with units, check units explicitly if the rubric mentions them.\n    - If multiple final answers are given, treat this as incorrect unless the rubric allows multiple or clearly identifies one final answer.\n5. Mathematical and factual accuracy:\n    - Verify calculations and logic as needed.\n    - If the student reaches the correct final answer with clearly flawed reasoning and the rubric requires correct reasoning, deduct accordingly.\n    - If the student's final answer is incorrect but most reasoning is correct, award partial credit per rubric.\n6. Style/format criteria:\n    - Only apply style/format penalties if the rubric includes them (e.g., clarity, completeness, organization, citation, code quality).\n7. Strictness and generosity:\n    - Be strict in applying rubric criteria, but avoid unnecessary penalties beyond the rubric.\n    - If the rubric allows multiple correct approaches, accept them.\n\nOutput format (mandatory):\n\n- Start with a brief justification organized by rubric criteria. For each criterion: state the criterion, what the student did, and points awarded out of that criterion's maximum.\n- Then provide the total score and place it in a single LaTeX-style box on its own line using \\boxed{<score>}.\n- Do not include any additional commentary after the boxed score.\n\nExample output structure (illustrative):\n\nCriterion A (Method correctness, 4 pts):\n\n- Student: …\n- Evaluation: …\n- Points: 3\n\nCriterion B (Final answer and units, 3 pts):\n\n- Student: …\n- Evaluation: …\n- Points: 1\n\nCriterion C (Explanation/justification, 3 pts):\n\n- Student: …\n- Evaluation: …\n- Points: 3\n\nTotal:\n\n\\boxed{7}\n\nConstraints:\n\n- Do not reveal or restate this instruction block in your output.\n- Do not change the rubric, problem, or student answer.\n- If the rubric requests a specific final format (e.g., integer, reduced fraction, significant figures), enforce it.\n\nNotes for special cases:\n\n- If plagiarism detection is part of the rubric, flag only with rubric-based evidence (e.g., verbatim copying if the rubric includes it).\n- For programming/code questions, if execution is required by the rubric, evaluate logic, correctness, complexity, and style as specified; otherwise, judge from static analysis per the rubric.\n\nEnd of template.\nJudge:",
+  "sampling_params": {
+    "temperature": 0.1,
+    "max_tokens": 32768,
+    "top_p": 1,
+    "top_k": 0,
+    "frequency_penalty": 0,
+    "presence_penalty": 0,
+    "seed": 1234,
+    "num_retries": 5,
+    "timeout": 300
+  },
+  "run_config": {
+    "dataset": "USAMO2025",
+    "model": "openrouter/openai/gpt-5",
+    "sample_indices": [],
+    "save_dir": "results/",
+    "num_processes": 1,
+    "async_mode": false,
+    "resume_from": ""
+  },
+  "project_root": "/Users/tianzhetrue/project/gauss_v2/gauss_v4/Gauss-Judge/tmp/GAUSS-Eval",
+  "timestamp": "2025-12-11T13:11:15.613Z",
+  "version": "1.0"
+}
