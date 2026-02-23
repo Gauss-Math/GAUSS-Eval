@@ -3,30 +3,44 @@ run_lean_judge.py
 =================
 CLI entry-point for running the Lean Mathlib judge over a GAUSS-Eval dataset.
 
-The judge extracts Lean 4 code from each answer, verifies it via a lean4web-
-compatible server (or a local Lean binary), and saves one JSON file per item
-together with a summary.
+Two modes
+---------
+1. **Direct mode** (default)
+   Expects Lean 4 code to be present in the ``answer`` field.
+   Extracts and verifies it straight away.
+
+2. **Decompose-and-verify mode** (``--decompose``)
+   An LLM first translates the natural-language proof into Lean 4 / Mathlib
+   code (leveraging a Mathlib-rich system prompt), then the code is verified
+   by the Lean backend.  Supports partial credit for `sorry`-ed sub-goals.
 
 Usage examples
 --------------
-# Verify all IMO 2025 answers using the lean4web server:
+# Direct mode – verify Lean code already in the answers:
 python src/run_lean_judge.py --dataset IMO2025
 
-# Use a local Lean installation instead:
-python src/run_lean_judge.py --dataset IMO2025 --backend local --lean-executable lean
+# Decompose mode – use GPT-4o-mini to formalise, then verify:
+python src/run_lean_judge.py --dataset IMO2025 \\
+    --decompose \\
+    --llm-model openrouter/openai/gpt-4o-mini
 
-# Point at a custom lean4web server:
+# Decompose with Claude, local Lean backend:
+python src/run_lean_judge.py --dataset USAMO2025 \\
+    --decompose \\
+    --llm-model anthropic/claude-3-5-sonnet \\
+    --backend local --lean-executable lean
+
+# Custom lean4web server, subset of items:
 python src/run_lean_judge.py \\
     --dataset USAMO2025 \\
     --server-url https://my-lean-server/api/compile \\
     --lean-version "leanprover/lean4:v4.15.0" \\
-    --timeout 180
-
-# Process only a subset of items:
-python src/run_lean_judge.py --dataset DEBUG --sample-indices "0,1,5-10"
+    --timeout 180 \\
+    --sample-indices "0,1,5-10"
 
 # Resume a previous run:
-python src/run_lean_judge.py --dataset IMO2025 --resume-from results/IMO2025_lean_1234567890
+python src/run_lean_judge.py --dataset IMO2025 \\
+    --resume-from results/IMO2025_lean_1234567890
 """
 
 from __future__ import annotations
@@ -56,7 +70,9 @@ from src.lean_judge import (
     DEFAULT_LEAN_VERSION,
     DEFAULT_TIMEOUT,
     LeanJudge,
+    DecomposeAndVerifyPipeline,
     run_lean_judge_on_item,
+    run_decompose_verify_on_item,
 )
 
 
@@ -129,7 +145,27 @@ def parse_arguments() -> argparse.Namespace:
     p.add_argument("--dataset", default="IMO2025",
                    choices=list(get_dataset_fn.keys()),
                    help="Dataset to evaluate.")
-    # Lean backend
+
+    # ── LLM decomposition ────────────────────────────────────────────────────
+    p.add_argument("--decompose", action="store_true",
+                   help=(
+                       "Enable the LLM decomposition step: an LLM translates "
+                       "the natural-language proof into Lean 4 / Mathlib code "
+                       "before verification."))
+    p.add_argument("--llm-model", default="openrouter/openai/gpt-4o-mini",
+                   help="litellm model string for the decomposition LLM.")
+    p.add_argument("--llm-timeout", type=int, default=300,
+                   help="Timeout in seconds for each LLM call.")
+    p.add_argument("--llm-temperature", type=float, default=0.1,
+                   help="Sampling temperature for the decomposition LLM.")
+    p.add_argument("--llm-max-tokens", type=int, default=4096,
+                   help="max_tokens for the decomposition LLM.")
+    p.add_argument("--no-partial-credit", action="store_true",
+                   help=(
+                       "Disable partial credit for sorry-ed sub-goals "
+                       "(default: partial credit is ON when --decompose is used)."))
+
+    # ── Lean backend ─────────────────────────────────────────────────────────
     p.add_argument("--backend", default="server", choices=["server", "local"],
                    help="Lean verification backend.")
     p.add_argument("--server-url", default=LEAN4WEB_API_URL,
@@ -139,8 +175,9 @@ def parse_arguments() -> argparse.Namespace:
     p.add_argument("--lean-executable", default="lean",
                    help="Path to the local `lean` binary (used with --backend local).")
     p.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT,
-                   help="Verification timeout in seconds per item.")
-    # Run control
+                   help="Lean verification timeout in seconds per item.")
+
+    # ── Run control ──────────────────────────────────────────────────────────
     p.add_argument("--sample-indices", default=None,
                    help="Comma-separated indices / ranges to process, e.g. '0,1,5-10'.")
     p.add_argument("--resume-from", default=None,
@@ -167,23 +204,43 @@ def _worker(args_tuple) -> Dict[str, Any]:
         lean_version,
         lean_executable,
         timeout,
+        # decompose-mode extras (None when not in decompose mode)
+        decompose,
+        llm_model,
+        llm_timeout,
+        llm_sampling_params,
+        partial_credit,
     ) = args_tuple
 
     process_name = current_process().name
     logger = setup_logging(save_dir, process_name)
 
     item_id = data_item.get("id", "?")
-    logger.info("Processing item id=%s", item_id)
+    logger.info("Processing item id=%s (decompose=%s)", item_id, decompose)
 
     try:
-        result = run_lean_judge_on_item(
-            data_item,
-            backend=backend,
-            server_url=server_url,
-            lean_version=lean_version,
-            lean_executable=lean_executable,
-            timeout=timeout,
-        )
+        if decompose:
+            result = run_decompose_verify_on_item(
+                data_item,
+                llm_model=llm_model,
+                llm_sampling_params=llm_sampling_params,
+                llm_timeout=llm_timeout,
+                lean_backend=backend,
+                lean_server_url=server_url,
+                lean_version=lean_version,
+                lean_executable=lean_executable,
+                lean_timeout=timeout,
+                partial_credit=partial_credit,
+            )
+        else:
+            result = run_lean_judge_on_item(
+                data_item,
+                backend=backend,
+                server_url=server_url,
+                lean_version=lean_version,
+                lean_executable=lean_executable,
+                timeout=timeout,
+            )
 
         out_path = os.path.join(save_dir, f"{item_id}.json")
         with open(out_path, "w", encoding="utf-8") as f:
@@ -241,13 +298,20 @@ def main() -> None:
     logger.info("%s run: %s", "Resuming" if resuming else "Starting", run_name)
     logger.info("=" * 60)
     logger.info("Dataset         : %s", args.dataset)
-    logger.info("Backend         : %s", args.backend)
+    logger.info("Mode            : %s", "decompose+verify" if args.decompose else "direct verify")
+    if args.decompose:
+        logger.info("LLM model       : %s", args.llm_model)
+        logger.info("LLM timeout     : %ds", args.llm_timeout)
+        logger.info("LLM temperature : %s", args.llm_temperature)
+        logger.info("LLM max_tokens  : %d", args.llm_max_tokens)
+        logger.info("Partial credit  : %s", not args.no_partial_credit)
+    logger.info("Lean backend    : %s", args.backend)
     if args.backend == "server":
         logger.info("Server URL      : %s", args.server_url)
         logger.info("Lean version    : %s", args.lean_version)
     else:
         logger.info("Lean executable : %s", args.lean_executable)
-    logger.info("Timeout         : %ds", args.timeout)
+    logger.info("Lean timeout    : %ds", args.timeout)
     logger.info("Workers         : %d", args.num_processes)
     logger.info("Save dir        : %s", save_dir)
     logger.info("=" * 60)
@@ -282,6 +346,12 @@ def main() -> None:
         logger.info("Nothing to do.")
         return
 
+    # ---- Decompose-mode LLM sampling params ----
+    llm_sampling_params = {
+        "temperature": args.llm_temperature,
+        "max_tokens":  args.llm_max_tokens,
+    } if args.decompose else None
+
     # ---- Build worker argument tuples ----
     worker_args = [
         (
@@ -293,6 +363,12 @@ def main() -> None:
             args.lean_version,
             args.lean_executable,
             args.timeout,
+            # decompose extras
+            args.decompose,
+            args.llm_model,
+            args.llm_timeout,
+            llm_sampling_params,
+            not args.no_partial_credit,
         )
         for item in remaining
     ]
@@ -316,9 +392,8 @@ def main() -> None:
 
     # ---- Statistics ----
     successful = sum(1 for r in results if r["success"])
-    failed = len(results) - successful
+    failed     = len(results) - successful
 
-    # Count how many answers actually contained Lean code
     lean_found = sum(
         1 for r in results
         if r["success"] and r["result"].get("lean_code_found", False)
@@ -329,36 +404,64 @@ def main() -> None:
         and r["result"].get("lean_judge_result", {}).get("success", False)
     )
 
+    # Partial-credit average (decompose mode only)
+    if args.decompose:
+        scores = [
+            r["result"].get("pipeline_score", 0.0)
+            for r in results if r["success"]
+        ]
+        maxes = [
+            r["result"].get("pipeline_max", 1.0)
+            for r in results if r["success"]
+        ]
+        avg_score = sum(scores) / len(scores) if scores else 0.0
+        avg_max   = sum(maxes)  / len(maxes)  if maxes  else 1.0
+    else:
+        avg_score = avg_max = None
+
     logger.info("=" * 60)
     logger.info("Run complete")
     logger.info("  Total items processed : %d", len(results))
     logger.info("  Worker successes      : %d", successful)
     logger.info("  Worker failures       : %d", failed)
-    logger.info("  Lean code found       : %d", lean_found)
+    logger.info("  Lean code generated   : %d", lean_found)
     logger.info("  Lean proofs verified  : %d", verified)
+    if args.decompose:
+        logger.info("  Avg score (partial)   : %.4f / %.4f", avg_score, avg_max)
     logger.info("=" * 60)
 
     # ---- Save summary ----
-    summary = {
+    summary: Dict[str, Any] = {
         "run_name": run_name,
         "dataset": args.dataset,
+        "mode": "decompose+verify" if args.decompose else "direct verify",
         "backend": args.backend,
         "server_url": args.server_url if args.backend == "server" else None,
         "lean_version": args.lean_version if args.backend == "server" else None,
         "lean_executable": args.lean_executable if args.backend == "local" else None,
-        "timeout": args.timeout,
+        "lean_timeout": args.timeout,
         "num_processes": args.num_processes,
         "total_examples": len(dataset.data),
         "newly_processed": len(results),
         "previously_completed": len(done),
         "worker_successes": successful,
         "worker_failures": failed,
-        "lean_code_found": lean_found,
+        "lean_code_generated": lean_found,
         "lean_proofs_verified": verified,
         "sample_indices": args.sample_indices or "all",
         "resumed": resuming,
         "results": results,
     }
+    if args.decompose:
+        summary.update({
+            "llm_model": args.llm_model,
+            "llm_timeout": args.llm_timeout,
+            "llm_temperature": args.llm_temperature,
+            "llm_max_tokens": args.llm_max_tokens,
+            "partial_credit": not args.no_partial_credit,
+            "avg_pipeline_score": avg_score,
+            "avg_pipeline_max": avg_max,
+        })
 
     summary_path = os.path.join(save_dir, "summary.json")
     with open(summary_path, "w", encoding="utf-8") as f:
